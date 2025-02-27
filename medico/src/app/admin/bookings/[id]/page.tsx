@@ -1,358 +1,238 @@
 "use client";
-import React, { useState } from "react";
-import {
-  Plus,
-  Minus,
-  Upload,
-  Stethoscope,
-  DollarSign,
-  Calendar,
-  Image as ImageIcon,
-} from "lucide-react";
-import Image from "next/image";
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import {User, Package, Calendar, Phone, Star, MapPin } from "lucide-react";
 
-interface FormData {
-  medicineName: string;
-  description: string;
-  price: string;
-  currency: string;
-  quantity: string;
-  batchNumber: string;
-  manufacturer: string;
-  expirationDate: string;
-  images: string[];
+interface Booking {
+  user: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  package: {
+    name: string;
+    description: string;
+    price: number;
+    itinerary: ItineraryItem[];
+    reviews: Review[];
+  };
+  startDate: string;
+  numberOfTravelers: number;
+  totalAmount: number;
+  emergencyContact: {
+    name: string;
+    phone: string;
+    relation: string;
+  };
 }
 
-const AdminMedicalStockUpdate: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"basic" | "details" | "media">(
-    "basic"
-  );
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-  const [success, setSuccess] = useState<string>("");
+interface ItineraryItem {
+  _id: string;
+  day: number;
+  title: string;
+  description: string;
+  stay: string;
+  activities: Activity[];
+}
 
-  const [formData, setFormData] = useState<FormData>({
-    medicineName: "",
-    description: "",
-    price: "",
-    currency: "USD",
-    quantity: "",
-    batchNumber: "",
-    manufacturer: "",
-    expirationDate: "",
-    images: [],
-  });
+interface Activity {
+  name: string;
+  time: string;
+  additionalDetails: string;
+}
 
-  // Handlers for basic information changes
-  const handleBasicChange = (
-    field: keyof Pick<FormData, "medicineName" | "description">,
-    value: string
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+interface Review {
+  _id: string;
+  username: string;
+  rating: number;
+  review: string;
+  createdAt: string;
+}
 
-  // Handlers for stock details changes
-  const handleDetailsChange = (
-    field: keyof Omit<FormData, "medicineName" | "description" | "images">,
-    value: string
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+const BookingDetailsPage = () => {
+  const [booking, setBooking] = useState<Booking | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Handle image file uploads and conversion to base64
-  const handleImageChange = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const files = Array.from(e.target.files || []);
-    const imagePromises = files.map(
-      (file) =>
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
-          reader.readAsDataURL(file);
-        })
-    );
+  const params = useParams();
+  const bookingId = params?.id;
 
-    try {
-      const base64Images = await Promise.all(imagePromises);
-      setFormData((prev) => ({
-        ...prev,
-        images: [...prev.images, ...base64Images],
-      }));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Form submission handler
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch("/api/admin/updatemedicalstock", {
-        method: "POST", // or PUT based on your API implementation
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update medical stock");
+  useEffect(() => {
+    const fetchBookingDetails = async () => {
+      if (!bookingId) return;
+      try {
+        const response = await fetch(`/api/admin/bookings/${bookingId}`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setBooking(data);
+        } else {
+          const errorData = await response.json();
+          setError(errorData.error || "Something went wrong!");
+        }
+      } catch (error) {
+        setError(error as string);
+      } finally {
+        setLoading(false);
       }
+    };
 
-      setSuccess("Medical stock updated successfully!");
-      // Optionally, reset the form here if needed.
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchBookingDetails();
+  }, [bookingId]);
 
-  const tabs = [
-    { id: "basic", label: "Basic Info", icon: Stethoscope },
-    { id: "details", label: "Stock Details", icon: DollarSign },
-    { id: "media", label: "Images", icon: ImageIcon },
-  ];
+  const Section = ({ title, children, icon: Icon }: { title: string; children: React.ReactNode; icon: React.ComponentType }) => (
+    <div className="mb-6">
+      <div className="w-full flex items-center justify-between p-4 bg-white rounded-lg shadow-sm">
+        <div className="flex items-center space-x-3">
+            <div className="w-6 h-6 text-blue-600">
+          <Icon  />
+            </div>
+                
+          <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
+        </div>
+      </div>
+      <div className="mt-4 p-6 bg-white rounded-lg shadow-lg animate-fadeIn">
+        {children}
+      </div>
+    </div>
+  );
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-pulse text-2xl text-blue-600">Loading details...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-2xl text-red-600">{error}</div>
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-2xl text-gray-600">No details available for this booking.</div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-600">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
-            Medical Stock Update
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Update information of your medical stocks
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold text-center text-blue-800 mb-8">Booking Details</h1>
 
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          {/* Tabs */}
-          <div className="flex space-x-4 border-b pb-4">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() =>
-                  setActiveTab(tab.id as "basic" | "details" | "media")
-                }
-                className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-                  activeTab === tab.id
-                    ? "bg-blue-500 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
+        <Section title="User Information" icon={User}>
+          <div className="grid md:grid-cols-2 gap-4">
+            <InfoCard label="Name" value={booking.user?.name} />
+            <InfoCard label="Email" value={booking.user?.email} />
+            <InfoCard label="Phone" value={booking.user?.phone} />
+          </div>
+        </Section
+
+        <Section title="Package Details" icon={Package}>
+          <div className="space-y-4">
+            <InfoCard label="Package Name" value={booking.package?.name} />
+            <InfoCard label="Description" value={booking.package?.description} />
+            <InfoCard label="Price" value={`₹${booking.package?.price}`} />
+          </div>
+        </Section>
+
+        <Section title="Booking Information" icon={Calendar}>
+          <div className="grid md:grid-cols-2 gap-4">
+            <InfoCard label="Start Date" value={new Date(booking.startDate).toLocaleDateString()} />
+            <InfoCard label="Number of Travelers" value={booking.numberOfTravelers} />
+            <InfoCard label="Total Amount" value={`₹${booking.totalAmount}`} />
+          </div>
+        </Section>
+
+        <Section title="Emergency Contact" icon={Phone}>
+          <div className="grid md:grid-cols-2 gap-4">
+            <InfoCard label="Name" value={booking.emergencyContact?.name} />
+            <InfoCard label="Phone" value={booking.emergencyContact?.phone} />
+            <InfoCard label="Relation" value={booking.emergencyContact?.relation} />
+          </div>
+        </Section>
+
+        <Section title="Itinerary" icon={MapPin}>
+          <div className="space-y-6">
+            {booking.package?.itinerary?.map((item, index) => (
+              <div key={item._id || index} className="p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-lg font-semibold text-blue-700 mb-2">
+                  Day {item.day}: {item.title}
+                </h3>
+                <p className="text-gray-700 mb-2">{item.description}</p>
+                <p className="text-gray-700 mb-2">
+                  <span className="font-medium">Stay:</span> {item.stay}
+                </p>
+                <div className="mt-4">
+                  <h4 className="font-medium text-gray-800 mb-2">Activities:</h4>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {Array.isArray(item.activities) && item.activities.length > 0 ? (
+                      item.activities.map((activity, activityIndex) => (
+                        <div key={activityIndex} className="p-3 bg-white rounded shadow-sm">
+                          <p className="font-medium text-blue-600">{activity.name}</p>
+                          <p className="text-gray-600">{activity.time}</p>
+                          <p className="text-gray-600">{activity.additionalDetails}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500">No activities listed</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
+        </Section>
 
-          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-            {activeTab === "basic" && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">Basic Information</h2>
-                <input
-                  type="text"
-                  placeholder="Medicine Name"
-                  value={formData.medicineName}
-                  onChange={(e) =>
-                    handleBasicChange("medicineName", e.target.value)
-                  }
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  required
-                />
-                <textarea
-                  placeholder="Description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    handleBasicChange("description", e.target.value)
-                  }
-                  className="w-full px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none min-h-[100px]"
-                  required
-                />
-              </div>
-            )}
-
-            {activeTab === "details" && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">Stock Details</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="relative">
-                    <DollarSign className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      value={formData.price}
-                      onChange={(e) =>
-                        handleDetailsChange("price", e.target.value)
-                      }
-                      className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                      required
-                    />
-                  </div>
-                  <select
-                    value={formData.currency}
-                    onChange={(e) =>
-                      handleDetailsChange("currency", e.target.value)
-                    }
-                    className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  >
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                    <option value="GBP">GBP</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Quantity"
-                    value={formData.quantity}
-                    onChange={(e) =>
-                      handleDetailsChange("quantity", e.target.value)
-                    }
-                    className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Batch Number"
-                    value={formData.batchNumber}
-                    onChange={(e) =>
-                      handleDetailsChange("batchNumber", e.target.value)
-                    }
-                    className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Manufacturer"
-                    value={formData.manufacturer}
-                    onChange={(e) =>
-                      handleDetailsChange("manufacturer", e.target.value)
-                    }
-                    className="px-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                    <input
-                      type="date"
-                      placeholder="Expiration Date"
-                      value={formData.expirationDate}
-                      onChange={(e) =>
-                        handleDetailsChange("expirationDate", e.target.value)
-                      }
-                      className="w-full pl-10 pr-4 py-2 border rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "media" && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">Manage Images</h2>
-                <div className="grid grid-cols-4 gap-4">
-                  {formData.images.map((img, idx) => (
-                    <div key={idx} className="relative h-32 w-full">
-                      <Image
-                        src={img}
-                        alt={`Uploaded ${idx}`}
-                        fill
-                        objectFit="cover"
-                        className="rounded-md"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFormData((prev) => ({
-                            ...prev,
-                            images: prev.images.filter((_, i) => i !== idx),
-                          }))
-                        }
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 transition-opacity opacity-0 hover:opacity-100"
-                      >
-                        <Minus className="h-4 w-4" />
-                      </button>
+        <Section title="Reviews" icon={Star}>
+          <div className="space-y-4">
+            {booking.package?.reviews?.length ? (
+              booking.package.reviews.map((review, index) => (
+                <div key={review._id || index} className="p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center mb-2">
+                    <span className="font-medium text-gray-800">{review.username}</span>
+                    <div className="ml-4 flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < review.rating ? "text-yellow-400 fill-current" : "text-gray-300"
+                          }`}
+                        />
+                      ))}
                     </div>
-                  ))}
-                  <label className="border-2 border-dashed rounded-lg flex flex-col items-center justify-center h-32 cursor-pointer hover:border-blue-500 transition-colors">
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="hidden"
-                    />
-                    <Upload className="h-8 w-8 text-gray-400" />
-                    <span className="text-sm text-gray-500 mt-2">
-                      Upload Images
-                    </span>
-                  </label>
+                  </div>
+                  <p className="text-gray-700">{review.review}</p>
+                  <p className="text-gray-500 text-sm mt-2">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
-              </div>
+              ))
+            ) : (
+              <p className="text-gray-600">No reviews available.</p>
             )}
-
-            {error && (
-              <div className="bg-red-50 text-red-500 p-4 rounded-md">
-                {error}
-              </div>
-            )}
-
-            {success && (
-              <div className="bg-green-50 text-green-500 p-4 rounded-md">
-                {success}
-              </div>
-            )}
-
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveTab(
-                    activeTab === "basic"
-                      ? "basic"
-                      : activeTab === "details"
-                      ? "basic"
-                      : "details"
-                  )
-                }
-                className="px-4 py-2 border rounded-md hover:bg-gray-50"
-              >
-                Previous
-              </button>
-              {activeTab === "media" ? (
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? "Updating..." : "Update Stock"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setActiveTab(
-                      activeTab === "basic" ? "details" : "media"
-                    )
-                  }
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-                >
-                  Next
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
+          </div>
+        </Section>
       </div>
     </div>
   );
 };
 
-export default AdminMedicalStockUpdate;
+const InfoCard = ({ label, value }: { label: string; value: string | number | null }) => (
+  <div className="p-3 bg-gray-50 rounded-lg">
+    <p className="text-sm font-medium text-gray-500">{label}</p>
+    <p className="text-lg text-gray-800">{value || "N/A"}</p>
+  </div>
+);
+
+export default BookingDetailsPage;

@@ -33,7 +33,7 @@ export default async function connectToDatabase() {
     await client.connect();
 
     // Specify the database name
-    const db = client.db('traveleasy'); // Replace 'traveleasy' with your actual database name if different
+    const db = client.db('medicos'); // Replace 'traveleasy' with your actual database name if different
 
     // Cache the client and db for reuse
     cachedClient = client;

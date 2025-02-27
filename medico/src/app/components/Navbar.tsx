@@ -22,7 +22,7 @@ const Navbar = () => {
 
   const menuItems = [
     { name: "Home", icon: <Stethoscope className="w-4 h-4" /> },
-    { name: "Prescription", icon: <ClipboardList className="w-4 h-4" /> },
+    { name: "Upload", icon: <ClipboardList className="w-4 h-4" /> },
     { name: "Orders", icon: <ShoppingCart className="w-4 h-4" /> },
     { name: "Reports", icon: <FileText className="w-4 h-4" /> },
     { name: "Contact", icon: <Phone className="w-4 h-4" /> },
